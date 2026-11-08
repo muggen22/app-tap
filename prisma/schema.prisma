@@ -1,0 +1,256 @@
+// Esquema de base de datos - Sistema de Inventario TecnoSur
+// Prisma 7.10.1 + PostgreSQL 18
+// La URL de conexion esta en prisma.config.mjs (Prisma 7 ya no la lee desde aqui)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------
+// Enumeraciones
+// ---------------------------------------------------------------
+
+enum Rol {
+  ADMINISTRATIVO
+  BODEGA
+  SUPERVISOR
+  GERENCIA
+}
+
+enum CargoTrabajador {
+  TECNICO
+  SUPERVISOR
+  ADMINISTRATIVO
+}
+
+enum TipoProducto {
+  HERRAMIENTA
+  EQUIPO
+  INSUMO
+}
+
+enum EstadoUnidad {
+  DISPONIBLE
+  ASIGNADO
+  DANADO
+  BAJA
+}
+
+enum EstadoEquipo {
+  BUENO
+  REGULAR
+  DANADO
+}
+
+enum CausaMerma {
+  DANO
+  ROBO
+  EXTRAVIO
+  VENCIMIENTO
+}
+
+enum EstadoSolicitud {
+  PENDIENTE
+  ATENDIDA
+  RECHAZADA
+}
+
+// ---------------------------------------------------------------
+// Catalogos (no se borran: se desactivan)
+// ---------------------------------------------------------------
+
+model Categoria {
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique @db.VarChar(100)
+  activa    Boolean    @default(true)
+  productos Producto[]
+}
+
+model Proveedor {
+  id       Int       @id @default(autoincrement())
+  nombre   String    @unique @db.VarChar(100)
+  activo   Boolean   @default(true)
+  entradas Entrada[]
+}
+
+// stock:
+//   INSUMO             -> cantidad disponible (puede tener decimales)
+//   EQUIPO/HERRAMIENTA -> unidades que no estan dadas de baja
+//                         (asignar o devolver no cambia el stock)
+model Producto {
+  id           Int          @id @default(autoincrement())
+  codigo       String       @unique @db.VarChar(50)
+  nombre       String       @db.VarChar(100)
+  marca        String?      @db.VarChar(100)
+  categoriaId  Int
+  categoria    Categoria    @relation(fields: [categoriaId], references: [id])
+  tipo         TipoProducto
+  descripcion  String?      @db.VarChar(255)
+  stock        Decimal      @default(0) @db.Decimal(12, 2)
+  stockMinimo  Decimal      @default(0) @db.Decimal(12, 2)
+  unidadMedida String       @default("unidad") @db.VarChar(20)
+  activo       Boolean      @default(true)
+
+  unidades    UnidadEquipo[]
+  entradas    Entrada[]
+  consumos    Consumo[]
+  mermas      Merma[]
+  solicitudes Solicitud[]
+
+  @@index([categoriaId])
+  @@index([tipo])
+}
+
+model UnidadEquipo {
+  id               Int          @id @default(autoincrement())
+  codigoUnidad     String       @unique @db.VarChar(50)
+  productoId       Int
+  producto         Producto     @relation(fields: [productoId], references: [id])
+  estado           EstadoUnidad @default(DISPONIBLE)
+  fechaAdquisicion DateTime     @db.Date
+  observacion      String?      @db.VarChar(255)
+  entradaId        Int?
+  entrada          Entrada?     @relation(fields: [entradaId], references: [id])
+
+  asignaciones Asignacion[]
+  mermas       Merma[]
+
+  @@index([productoId])
+  @@index([estado])
+}
+
+model Trabajador {
+  id               Int             @id @default(autoincrement())
+  codigoTrabajador String          @unique @db.VarChar(50)
+  nombre           String          @db.VarChar(100)
+  cargo            CargoTrabajador
+  activo           Boolean         @default(true)
+
+  asignaciones Asignacion[]
+  consumos     Consumo[]
+  solicitudes  Solicitud[]
+}
+
+// Solo los usuarios inician sesion (los trabajadores no)
+model Usuario {
+  id           Int     @id @default(autoincrement())
+  nombre       String  @db.VarChar(100)
+  email        String  @unique @db.VarChar(150)
+  passwordHash String  @db.VarChar(255)
+  rol          Rol
+  activo       Boolean @default(true)
+
+  entradas             Entrada[]
+  mermas               Merma[]
+  consumos             Consumo[]
+  asignaciones         Asignacion[]
+  solicitudesCreadas   Solicitud[]  @relation("Solicitante")
+  solicitudesAtendidas Solicitud[]  @relation("AtendidaPor")
+}
+
+// ---------------------------------------------------------------
+// Movimientos (son el historial: nunca se eliminan)
+// ---------------------------------------------------------------
+
+model Entrada {
+  id            Int       @id @default(autoincrement())
+  fecha         DateTime  @default(now()) @db.Timestamptz(3)
+  productoId    Int
+  producto      Producto  @relation(fields: [productoId], references: [id])
+  proveedorId   Int
+  proveedor     Proveedor @relation(fields: [proveedorId], references: [id])
+  cantidad      Decimal   @db.Decimal(12, 2)
+  responsableId Int
+  responsable   Usuario   @relation(fields: [responsableId], references: [id])
+
+  unidades UnidadEquipo[]
+
+  @@index([productoId])
+  @@index([fecha])
+}
+
+model Asignacion {
+  id               Int           @id @default(autoincrement())
+  unidadId         Int
+  unidad           UnidadEquipo  @relation(fields: [unidadId], references: [id])
+  trabajadorId     Int
+  trabajador       Trabajador    @relation(fields: [trabajadorId], references: [id])
+  fechaEntrega     DateTime      @default(now()) @db.Timestamptz(3)
+  fechaDevolucion  DateTime?     @db.Timestamptz(3)
+  estadoEntrega    EstadoEquipo
+  estadoDevolucion EstadoEquipo?
+  responsableId    Int
+  responsable      Usuario       @relation(fields: [responsableId], references: [id])
+  observacion      String?       @db.VarChar(255)
+  solicitudId      Int?
+  solicitud        Solicitud?    @relation(fields: [solicitudId], references: [id])
+
+  @@index([unidadId])
+  @@index([trabajadorId])
+  @@index([fechaEntrega])
+}
+
+model Consumo {
+  id            Int        @id @default(autoincrement())
+  fecha         DateTime   @default(now()) @db.Timestamptz(3)
+  productoId    Int
+  producto      Producto   @relation(fields: [productoId], references: [id])
+  trabajadorId  Int
+  trabajador    Trabajador @relation(fields: [trabajadorId], references: [id])
+  cantidad      Decimal    @db.Decimal(12, 2)
+  responsableId Int
+  responsable   Usuario    @relation(fields: [responsableId], references: [id])
+  solicitudId   Int?
+  solicitud     Solicitud? @relation(fields: [solicitudId], references: [id])
+
+  @@index([productoId])
+  @@index([trabajadorId])
+  @@index([fecha])
+}
+
+model Merma {
+  id            Int           @id @default(autoincrement())
+  fecha         DateTime      @default(now()) @db.Timestamptz(3)
+  productoId    Int
+  producto      Producto      @relation(fields: [productoId], references: [id])
+  unidadId      Int?
+  unidad        UnidadEquipo? @relation(fields: [unidadId], references: [id])
+  cantidad      Decimal       @db.Decimal(12, 2)
+  causa         CausaMerma
+  observacion   String?       @db.VarChar(255)
+  responsableId Int
+  responsable   Usuario       @relation(fields: [responsableId], references: [id])
+
+  @@index([productoId])
+  @@index([causa])
+  @@index([fecha])
+}
+
+model Solicitud {
+  id             Int             @id @default(autoincrement())
+  fecha          DateTime        @default(now()) @db.Timestamptz(3)
+  trabajadorId   Int
+  trabajador     Trabajador      @relation(fields: [trabajadorId], references: [id])
+  productoId     Int
+  producto       Producto        @relation(fields: [productoId], references: [id])
+  cantidad       Decimal         @db.Decimal(12, 2)
+  estado         EstadoSolicitud @default(PENDIENTE)
+  solicitanteId  Int
+  solicitante    Usuario         @relation("Solicitante", fields: [solicitanteId], references: [id])
+  atendidaPorId  Int?
+  atendidaPor    Usuario?        @relation("AtendidaPor", fields: [atendidaPorId], references: [id])
+  fechaRespuesta DateTime?       @db.Timestamptz(3)
+  motivoRechazo  String?         @db.VarChar(255)
+
+  asignaciones Asignacion[]
+  consumos     Consumo[]
+
+  @@index([estado])
+  @@index([trabajadorId])
+  @@index([solicitanteId])
+}
