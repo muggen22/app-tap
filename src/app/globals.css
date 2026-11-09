@@ -24,3 +24,20 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ---- Componentes comunes de TecnoSur (se usan en todas las pantallas) ---- */
+@layer components {
+  .tarjeta { @apply rounded-lg bg-white p-6 shadow; }
+  .etiqueta { @apply mb-1 block text-sm font-medium text-slate-700; }
+  .campo { @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600; }
+  .error-campo { @apply mt-1 text-sm text-red-700; }
+  .btn { @apply inline-block rounded-md bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800 disabled:opacity-60; }
+  .btn-sec { @apply inline-block rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700 hover:bg-slate-50; }
+  .tabla { @apply w-full overflow-hidden rounded-lg bg-white text-sm shadow; }
+  .tabla th { @apply bg-slate-50 px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500; }
+  .tabla td { @apply border-t border-slate-100 px-4 py-2; }
+  .etq { @apply rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600; }
+  .etq-ok { @apply rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800; }
+  .aviso-ok { @apply rounded-md bg-green-50 px-3 py-2 text-sm text-green-800; }
+  .aviso-error { @apply rounded-md bg-red-50 px-3 py-2 text-sm text-red-700; }
+}

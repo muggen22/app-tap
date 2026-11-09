@@ -148,7 +148,8 @@ model Usuario {
   entradas             Entrada[]
   mermas               Merma[]
   consumos             Consumo[]
-  asignaciones         Asignacion[]
+    asignaciones           Asignacion[] @relation("ResponsableAsignacion")
+  asignacionesReportadas Asignacion[] @relation("ReporteSupervisor")
   solicitudesCreadas   Solicitud[]  @relation("Solicitante")
   solicitudesAtendidas Solicitud[]  @relation("AtendidaPor")
 }
@@ -174,21 +175,33 @@ model Entrada {
   @@index([fecha])
 }
 
-model Asignacion {
-  id               Int           @id @default(autoincrement())
-  unidadId         Int
-  unidad           UnidadEquipo  @relation(fields: [unidadId], references: [id])
-  trabajadorId     Int
-  trabajador       Trabajador    @relation(fields: [trabajadorId], references: [id])
-  fechaEntrega     DateTime      @default(now()) @db.Timestamptz(3)
-  fechaDevolucion  DateTime?     @db.Timestamptz(3)
-  estadoEntrega    EstadoEquipo
-  estadoDevolucion EstadoEquipo?
-  responsableId    Int
-  responsable      Usuario       @relation(fields: [responsableId], references: [id])
-  observacion      String?       @db.VarChar(255)
-  solicitudId      Int?
-  solicitud        Solicitud?    @relation(fields: [solicitudId], references: [id])
+  model Asignacion {
+  id                    Int           @id @default(autoincrement())
+  unidadId              Int
+  unidad                UnidadEquipo  @relation(fields: [unidadId], references: [id])
+  trabajadorId          Int
+  trabajador            Trabajador    @relation(fields: [trabajadorId], references: [id])
+  solicitudId           Int?
+  solicitud             Solicitud?    @relation(fields: [solicitudId], references: [id])
+
+  // Entrega (Bodega)
+  fechaEntrega          DateTime      @default(now()) @db.Timestamptz(3)
+  estadoEntrega         EstadoEquipo
+  observacionEntrega    String?       @db.VarChar(255)
+  responsableId         Int
+  responsable           Usuario       @relation("ResponsableAsignacion", fields: [responsableId], references: [id])
+
+  // Reporte de uso en terreno (Supervisor, HU-19)
+  reporteSupervisor     String?       @db.VarChar(255)
+  reportadoPorId        Int?
+  reportadoPor          Usuario?      @relation("ReporteSupervisor", fields: [reportadoPorId], references: [id])
+  fechaReporte          DateTime?     @db.Timestamptz(3)
+
+  // Devolucion (Bodega, HU-07)
+  fechaDevolucion       DateTime?     @db.Timestamptz(3)
+  estadoDevolucion      EstadoEquipo?
+  observacionDevolucion String?       @db.VarChar(255)
+  sinReporteSupervisor  Boolean       @default(false)
 
   @@index([unidadId])
   @@index([trabajadorId])
@@ -247,7 +260,7 @@ model Solicitud {
   fechaRespuesta DateTime?       @db.Timestamptz(3)
   motivoRechazo  String?         @db.VarChar(255)
 
-  asignaciones Asignacion[]
+  asignaciones Asignacion[] // esto debo remplazarlo por el que enviaste?
   consumos     Consumo[]
 
   @@index([estado])

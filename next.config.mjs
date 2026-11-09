@@ -1,8 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Sin cacheComponents: todas las paginas dependen de la sesion y del rol,
+  // y deben mostrar los datos actualizados al momento de consultar.
   turbopack: {
     rules: {
       "*.css": {

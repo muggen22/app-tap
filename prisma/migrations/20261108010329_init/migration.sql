@@ -295,3 +295,4 @@ ALTER TABLE "Solicitud" ADD CONSTRAINT "Solicitud_solicitanteId_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "Solicitud" ADD CONSTRAINT "Solicitud_atendidaPorId_fkey" FOREIGN KEY ("atendidaPorId") REFERENCES "Usuario"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
